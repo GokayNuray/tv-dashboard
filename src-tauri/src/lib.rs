@@ -69,7 +69,12 @@ fn change_url(app_handle: AppHandle, url: String) {
         .navigate(Url::parse(&url).expect("Invalid URL provided"))
         .expect("Failed to navigate webview to new URL");
 
+    webview.window().set_title(
+        &format!("{}", url),
+    ).expect("Failed to set window title");
+
     info!("Webview URL changed successfully to: {}", url);
+
 }
 
 #[allow(dead_code)]

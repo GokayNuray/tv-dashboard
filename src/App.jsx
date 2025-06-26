@@ -62,7 +62,7 @@ const App = () => {
     }, []);
 
     const startLoop = (urls, timeBetween) => {
-        invoke("create_window").then(console.log);
+        invoke("create_window", {urlList : urls}).then(console.log);
 
         urls = urls.filter(url => url.trim() !== '');
         displayUrlsRef.current = urls;

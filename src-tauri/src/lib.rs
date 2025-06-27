@@ -3,25 +3,21 @@ use tauri::{command, AppHandle, Emitter, Manager, Url, WebviewUrl, WebviewWindow
 
 use log::info;
 
+use std::fmt::Write;
+use std::sync::Mutex;
+
 #[command]
 fn greet(name: &str) -> String {
     info!("Greet command invoked with name: {}", name);
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+static URLS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+#[allow(dead_code)]
 #[command]
-fn create_window(app_handle: AppHandle, url_list: Vec<String>) {
-    info!("Creating a new window with URL list: {:?}", url_list);
-    use std::fmt::Write as _;
-
-    info!("Creating a new window...");
-
-    if app_handle.get_webview("screen").is_some() {
-        info!("Window with label 'screen' already exists, skipping creation.");
-        return;
-    }
-
-    // Generate HTML for the URL list as dots with hover expansion (vertical stack)
+fn create_list() -> String {
+    let urls = URLS.lock().unwrap();
+    info!("Creating list from URL list: {:?}", *urls);
     let mut url_list_html = String::from(
         r##"
         <style>
@@ -85,8 +81,8 @@ fn create_window(app_handle: AppHandle, url_list: Vec<String>) {
         <div id="url-list" style='position:fixed;top:0;left:0;padding:8px;z-index:9999;font-size:14px;max-width:300px;overflow:auto;'>
     "##,
     );
-    for url in &url_list {
-        // Escape single quotes for JS/HTML safety
+
+    for url in &*urls {
         let safe_url = url.replace('\'', "\\'");
         let _ = write!(
             url_list_html,
@@ -98,12 +94,32 @@ fn create_window(app_handle: AppHandle, url_list: Vec<String>) {
         );
     }
     url_list_html.push_str("</div>");
+    url_list_html
+}
 
-    // JS to inject the URL list HTML
+#[command]
+fn create_window(app_handle: AppHandle, urls: Vec<String>) {
+    info!("Creating a new window...");
+
+    let mut urls_mutex = URLS.lock().unwrap();
+    *urls_mutex = urls;
+    info!("URL list updated: {:?}", *urls_mutex);
+    let webview_option = app_handle
+        .get_webview("screen");
+    if webview_option.is_some() {
+        info!("Window with label 'screen' already exists, skipping creation.");
+        webview_option.unwrap().reload().expect("Failed reload webview");
+        return;
+    };
+
     let inject_script = format!(
-        r#"
+        r##"
         document.addEventListener('DOMContentLoaded', function() {{
-            document.body.insertAdjacentHTML('afterbegin', `{}`);
+        (async () => {{
+            let list = await window.__TAURI_INTERNALS__.invoke('create_list');
+            console.log('URL List:', list);
+            document.body.insertAdjacentHTML('afterbegin', list);
+        }})().catch((e) => console.error('Error creating URL list:', e));
         }});
         window.addEventListener('click', () => {{
             window.__TAURI_INTERNALS__.invoke('reset_timer');
@@ -115,9 +131,9 @@ fn create_window(app_handle: AppHandle, url_list: Vec<String>) {
             window.__TAURI_INTERNALS__.invoke('reset_timer');
             window.__TAURI_INTERNALS__.invoke('keyup', {{key: e.key}});
         }});
-        "#,
-        url_list_html
+        "##
     );
+    info!("{}", inject_script);
 
     let _window = WebviewWindowBuilder::new(
         &app_handle,
@@ -192,7 +208,8 @@ pub fn run() {
             create_window,
             reset_timer,
             change_url,
-            keyup
+            keyup,
+            create_list
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

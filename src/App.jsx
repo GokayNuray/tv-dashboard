@@ -37,6 +37,7 @@ const App = () => {
 
         const unlisten = listen('reset-timer', () => {
             resetCounter();
+            invoke("set_page_change_timestamp", {timestamp: endTimeRef.current});
         });
 
         const unlisten2 = listen('keyup', (event) => {

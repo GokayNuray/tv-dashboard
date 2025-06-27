@@ -24,6 +24,13 @@ fn get_page_change_timestamp() -> i64 {
 
 #[allow(dead_code)]
 #[command]
+fn set_page_change_timestamp(timestamp: i64) {
+    let mut page_change_timestamp = PAGE_CHANGE_TIMESTAMP.lock().unwrap();
+    *page_change_timestamp = timestamp;
+}
+
+#[allow(dead_code)]
+#[command]
 fn create_list() -> String {
     let urls = URLS.lock().unwrap();
     info!("Creating list from URL list: {:?}", *urls);
@@ -145,7 +152,7 @@ fn create_list() -> String {
         let _ = write!(
             url_list_html,
             r##"<div class="url-dot-container">
-    <a href="#" class="url-dot {}" tabindex="0" onclick="window.__TAURI_INTERNALS__.invoke('change_url', {{ url: '{}' }}); return false;">
+    <a href="#" class="url-dot {}" tabindex="0" onclick="window.__TAURI_INTERNALS__.invoke('change_url', {{ url: '{}', endTime: 0 }}); return false;">
         {}
     </a>
     <span class="url-tooltip">{}</span>
@@ -230,11 +237,17 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
                 }}
                 let percent = 0;
                 const target = 100;
-                const startTime = Date.now();
-                const endTime = await window.__TAURI_INTERNALS__.invoke('get_page_change_timestamp');
-                const interval = setInterval(() => {{
-                const percent = Math.min(100, Math.floor(((Date.now() - startTime) / (endTime - startTime)) * 100));
-                setProgress(percent);
+                let startTime = Date.now();
+                let endTime = await window.__TAURI_INTERNALS__.invoke('get_page_change_timestamp');
+                const interval = setInterval(async () => {{
+                    const newTime = await window.__TAURI_INTERNALS__.invoke('get_page_change_timestamp');
+                    if (newTime !== endTime) {{
+                        endTime = newTime;
+                        startTime = Date.now();
+                        return;
+                    }}
+                    const percent = Math.min(100, Math.floor(((Date.now() - startTime) / (endTime - startTime)) * 100));
+                    setProgress(percent);
                 }}, 100);
             }}
         }})().catch((e) => console.error('Error creating URL list:', e));
@@ -334,7 +347,8 @@ pub fn run() {
             change_url,
             keyup,
             create_list,
-            get_page_change_timestamp
+            get_page_change_timestamp,
+            set_page_change_timestamp
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

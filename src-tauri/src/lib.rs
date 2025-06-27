@@ -14,6 +14,14 @@ fn greet(name: &str) -> String {
 
 static URLS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 static CURRENT_URL: Mutex<String> = Mutex::new(String::new());
+static PAGE_CHANGE_TIMESTAMP: Mutex<i64> = Mutex::new(0);
+
+#[allow(dead_code)]
+#[command]
+fn get_page_change_timestamp() -> i64 {
+    *PAGE_CHANGE_TIMESTAMP.lock().unwrap()
+}
+
 #[allow(dead_code)]
 #[command]
 fn create_list() -> String {
@@ -22,12 +30,59 @@ fn create_list() -> String {
     let mut url_list_html = String::from(
         r##"
         <style>
-        #url-list * {
-            all: initial;
+        #url-list .pie-container {
+            width: 14px;
+            height: 14px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+            font-size: 1em;
+            font-weight: bold;
+            pointer-events: none;
         }
-
+        #url-list *,
         #url-list {
-            all: initial;
+            position: initial;
+            top: initial;
+            left: initial;
+            width: initial;
+            height: initial;
+            margin: initial;
+            padding: initial;
+            font-family: initial;
+            font-size: initial;
+            font-weight: initial;
+            flex: initial;
+            display: initial;
+            align-items: initial;
+            justify-content: initial;
+            background: initial;
+            color: initial;
+            border: initial;
+            box-shadow: initial;
+            text-decoration: initial;
+            cursor: initial;
+            overflow: initial;
+            z-index: initial;
+            opacity: initial;
+            visibility: initial;
+            transition: initial;
+            white-space: initial;
+            pointer-events: initial;
+            line-height: initial;
+            border-radius: initial;
+            flex-direction: initial;
+            gap: initial;
+            flex-wrap: initial;
+            text-align: initial;
+            box-sizing: initial;
+            transform: initial;
+        }
+        #url-list {
             display: flex;
             flex-direction: column;
             gap: 8px;
@@ -90,10 +145,25 @@ fn create_list() -> String {
         let _ = write!(
             url_list_html,
             r##"<div class="url-dot-container">
-    <a href="#" class="url-dot {}" tabindex="0" onclick="window.__TAURI_INTERNALS__.invoke('change_url', {{ url: '{}' }}); return false;"></a>
+    <a href="#" class="url-dot {}" tabindex="0" onclick="window.__TAURI_INTERNALS__.invoke('change_url', {{ url: '{}' }}); return false;">
+        {}
+    </a>
     <span class="url-tooltip">{}</span>
 </div>"##,
-            active, safe_url, url
+            active,
+            safe_url,
+            if active == "active-dot" {
+                // Insert the SVG pie for the active dot
+                r##"<span class="pie-container">
+                    <svg width="14" height="14">
+                        <circle cx="7" cy="7" r="6" stroke="#21f623" stroke-width="1.5" fill="none"/>
+                        <path id="pie-fill-active" fill="#21f623" stroke="none"/>
+                    </svg>
+                </span>"##
+            } else {
+                ""
+            },
+            url
         );
     }
     url_list_html.push_str("</div>");
@@ -123,9 +193,50 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
             console.log('URL List:', list);
             document.body.insertAdjacentHTML('afterbegin', list);
             const dot = document.querySelector('.active-dot');
-            console.log(dot);
-            dot.style = 'border: 2px solid #00ff00';
-
+            if (dot) {{
+                const data = dot.getAttribute('data');
+                dot.innerHTML = `
+                    <span class="pie-container">
+                        <svg width="14" height="14">
+                            <circle cx="7" cy="7" r="6" stroke="#21f623" stroke-width="1.5" fill="none"/>
+                            <path id="pie-fill-active" fill="#21f623" stroke="none"/>
+                        </svg>
+                    </span>
+                `;
+                function describeArc(cx, cy, r, percent) {{
+                    const angle = percent / 100 * 360;
+                    const radians = (angle - 90) * Math.PI / 180.0;
+                    const x = cx + r * Math.cos(radians);
+                    const y = cy + r * Math.sin(radians);
+                    const largeArc = angle > 180 ? 1 : 0;
+                    if (percent === 0) {{
+                        return '';
+                    }}
+                    if (percent === 100) {{
+                        return `M ${{cx}},${{cy}} m -${{r}},0 a ${{r}},${{r}} 0 1,0 ${{r*2}},0 a ${{r}},${{r}} 0 1,0 -${{r*2}},0`;
+                    }}
+                    return [
+                        `M ${{cx}},${{cy}}`,
+                        `L ${{cx}},${{cy - r}}`,
+                        `A ${{r}},${{r}} 0 ${{largeArc}},1 ${{x}},${{y}}`,
+                        'Z'
+                    ].join(' ');
+                }}
+                function setProgress(percent) {{
+                    const fillPath = document.getElementById('pie-fill-active');
+                    if (fillPath) {{
+                        fillPath.setAttribute('d', describeArc(7, 7, 6, percent));
+                    }}
+                }}
+                let percent = 0;
+                const target = 100;
+                const startTime = Date.now();
+                const endTime = await window.__TAURI_INTERNALS__.invoke('get_page_change_timestamp');
+                const interval = setInterval(() => {{
+                const percent = Math.min(100, Math.floor(((Date.now() - startTime) / (endTime - startTime)) * 100));
+                setProgress(percent);
+                }}, 100);
+            }}
         }})().catch((e) => console.error('Error creating URL list:', e));
         }});
         window.addEventListener('click', () => {{
@@ -171,7 +282,7 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
 }
 
 #[command]
-fn change_url(app_handle: AppHandle, url: String) {
+fn change_url(app_handle: AppHandle, url: String, end_time: i64) {
     let webview = app_handle
         .get_webview("screen")
         .expect("Failed to get webview for the new window");
@@ -187,6 +298,9 @@ fn change_url(app_handle: AppHandle, url: String) {
 
     let mut current_url = CURRENT_URL.lock().unwrap();
     *current_url = url.clone();
+
+    let mut page_open_timestamp = PAGE_CHANGE_TIMESTAMP.lock().unwrap();
+    *page_open_timestamp = end_time;
 
     info!("Webview URL changed successfully to: {}", url);
 }
@@ -219,7 +333,8 @@ pub fn run() {
             reset_timer,
             change_url,
             keyup,
-            create_list
+            create_list,
+            get_page_change_timestamp
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

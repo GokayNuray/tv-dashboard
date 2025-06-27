@@ -83,7 +83,7 @@ const App = () => {
     useEffect(() => {
         const urls = displayUrlsRef.current;
         if (urls[index]) {
-            invoke("change_url", {url: urls[index]});
+            invoke("change_url", {url: urls[index], endTime: endTimeRef.current});
         }
     }, [index]);
 

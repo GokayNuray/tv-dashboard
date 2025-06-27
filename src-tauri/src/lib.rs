@@ -13,6 +13,7 @@ fn greet(name: &str) -> String {
 }
 
 static URLS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+static CURRENT_URL: Mutex<String> = Mutex::new(String::new());
 #[allow(dead_code)]
 #[command]
 fn create_list() -> String {
@@ -84,13 +85,15 @@ fn create_list() -> String {
 
     for url in &*urls {
         let safe_url = url.replace('\'', "\\'");
+        let current_url = CURRENT_URL.lock().unwrap();
+        let active = if *current_url == *url {"active-dot"} else {""};
         let _ = write!(
             url_list_html,
             r##"<div class="url-dot-container">
-    <a href="#" class="url-dot" tabindex="0" onclick="window.__TAURI_INTERNALS__.invoke('change_url', {{ url: '{}' }}); return false;"></a>
+    <a href="#" class="url-dot {}" tabindex="0" onclick="window.__TAURI_INTERNALS__.invoke('change_url', {{ url: '{}' }}); return false;"></a>
     <span class="url-tooltip">{}</span>
 </div>"##,
-            safe_url, url
+            active, safe_url, url
         );
     }
     url_list_html.push_str("</div>");
@@ -119,6 +122,10 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
             let list = await window.__TAURI_INTERNALS__.invoke('create_list');
             console.log('URL List:', list);
             document.body.insertAdjacentHTML('afterbegin', list);
+            const dot = document.querySelector('.active-dot');
+            console.log(dot);
+            dot.style = 'border: 2px solid #00ff00';
+
         }})().catch((e) => console.error('Error creating URL list:', e));
         }});
         window.addEventListener('click', () => {{
@@ -131,7 +138,7 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
             window.__TAURI_INTERNALS__.invoke('reset_timer');
             window.__TAURI_INTERNALS__.invoke('keyup', {{key: e.key}});
         }});
-        "##
+        "##,
     );
     info!("{}", inject_script);
 
@@ -177,6 +184,9 @@ fn change_url(app_handle: AppHandle, url: String) {
         .window()
         .set_title(&format!("{}", url))
         .expect("Failed to set window title");
+
+    let mut current_url = CURRENT_URL.lock().unwrap();
+    *current_url = url.clone();
 
     info!("Webview URL changed successfully to: {}", url);
 }

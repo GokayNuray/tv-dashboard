@@ -159,14 +159,35 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
     let inject_script = format!(
         r##"
         document.addEventListener('DOMContentLoaded', function() {{
+
+        let container = document.createElement('div');
+        container.id = 'url-list-shadow-container';
+        document.body.insertAdjacentElement('beforebegin', container);
+        let shadow = container.attachShadow({{ mode: 'open' }});
+
+        let loadingOverlay = document.createElement('div');
+        loadingOverlay.id = 'tauri-loading-overlay';
+        loadingOverlay.style.cssText = `
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(255,255,255,0.85);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            color: #2196f3;
+            transition: opacity 0.2s;
+            opacity: 0;
+            pointer-events: none;
+        `;
+        loadingOverlay.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;"><svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="24" r="20" stroke="#2196f3" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.4 31.4" stroke-dashoffset="0"><animateTransform attributeName="transform" type="rotate" repeatCount="indefinite" dur="1s" values="0 24 24;360 24 24" keyTimes="0;1"/></circle></svg><span style="margin-top:12px;">Loading...</span></div>';
+        shadow.appendChild(loadingOverlay);
+
         (async () => {{
             let list = await window.__TAURI_INTERNALS__.invoke('create_list');
             console.log('URL List:', list);
-            let container = document.createElement('div');
-            container.id = 'url-list-shadow-container';
-            document.body.insertAdjacentElement('beforebegin', container);
-            let shadow = container.attachShadow({{ mode: 'open' }});
-            shadow.innerHTML = list;
+            shadow.innerHTML += list;
             const dots = shadow.querySelectorAll('.url-dot');
             for (let i = 0; i < dots.length; i++) {{
                 const dot = dots[i];
@@ -280,9 +301,6 @@ fn change_url(app_handle: AppHandle, index: usize, end_time: i64) {
     }
     let url = urls[index].clone();
 
-    app_handle.emit("change-index", index)
-        .expect("Failed to emit change-index event");
-
     let webview_option = app_handle.get_webview("screen");
     if webview_option.is_none() {
         info!("Webview with label 'screen' does not exist.");
@@ -292,14 +310,29 @@ fn change_url(app_handle: AppHandle, index: usize, end_time: i64) {
     let webview = webview_option
         .expect("Failed to get webview for the new window");
 
-    webview
-        .navigate(Url::parse(&url).expect("Invalid URL provided"))
-        .expect("Failed to navigate webview to new URL");
+    webview.eval(format!(r#"
+        console.log('Showing loading overlay');
+            container = document.getElementById('url-list-shadow-container');
+            shadow = container.shadowRoot;
+            aloadingOverlay = shadow.getElementById('tauri-loading-overlay');
+            if (aloadingOverlay) {{
+                aloadingOverlay.style.opacity = '1';
+                aloadingOverlay.style.pointerEvents = 'auto';
+            }}
+        setTimeout(() => {{
+        window.location.href = "{}";
+        }}, 200);
+"#, url)
+)
+        .expect("Failed to execute console log in webview");
 
     webview
         .window()
         .set_title(&format!("{}", url))
         .expect("Failed to set window title");
+
+    app_handle.emit("change-index", index)
+        .expect("Failed to emit change-index event");
 
     let mut page_open_timestamp = PAGE_CHANGE_TIMESTAMP.lock().unwrap();
     *page_open_timestamp = end_time;

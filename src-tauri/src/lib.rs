@@ -268,7 +268,7 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
         &app_handle,
         "screen",
         WebviewUrl::External(
-            Url::parse("https://google.com").expect("Invalid URL for the new window"),
+            Url::parse(&*urls[0]).expect("Invalid URL for the new window"),
         ),
     )
     .title("Screen")

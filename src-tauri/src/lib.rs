@@ -51,44 +51,6 @@ fn create_list() -> String {
             font-weight: bold;
             pointer-events: none;
         }
-        #url-list *,
-        #url-list {
-            position: initial;
-            top: initial;
-            left: initial;
-            width: initial;
-            height: initial;
-            margin: initial;
-            padding: initial;
-            font-family: initial;
-            font-size: initial;
-            font-weight: initial;
-            flex: initial;
-            display: initial;
-            align-items: initial;
-            justify-content: initial;
-            background: initial;
-            color: initial;
-            border: initial;
-            box-shadow: initial;
-            text-decoration: initial;
-            cursor: initial;
-            overflow: initial;
-            z-index: initial;
-            opacity: initial;
-            visibility: initial;
-            transition: initial;
-            white-space: initial;
-            pointer-events: initial;
-            line-height: initial;
-            border-radius: initial;
-            flex-direction: initial;
-            gap: initial;
-            flex-wrap: initial;
-            text-align: initial;
-            box-sizing: initial;
-            transform: initial;
-        }
         #url-list {
             display: flex;
             flex-direction: column;
@@ -190,8 +152,6 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
         .get_webview("screen");
     if webview_option.is_some() {
         info!("Window with label 'screen' already exists, skipping creation.");
-        // let mut current_url = CURRENT_URL.lock().unwrap();
-        // *current_url = urls[0].clone();
         webview_option.unwrap().reload().expect("Failed reload webview");
         return;
     };
@@ -202,8 +162,12 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
         (async () => {{
             let list = await window.__TAURI_INTERNALS__.invoke('create_list');
             console.log('URL List:', list);
-            document.body.insertAdjacentHTML('afterbegin', list);
-            const dots = document.querySelectorAll('.url-dot');
+            let container = document.createElement('div');
+            container.id = 'url-list-shadow-container';
+            document.body.insertAdjacentElement('afterbegin', container);
+            let shadow = container.attachShadow({{ mode: 'open' }});
+            shadow.innerHTML = list;
+            const dots = shadow.querySelectorAll('.url-dot');
             for (let i = 0; i < dots.length; i++) {{
                 const dot = dots[i];
                 dot.addEventListener('click', (e) => {{
@@ -211,7 +175,7 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
                     window.__TAURI_INTERNALS__.invoke('change_url', {{ index : i, endTime: 0 }});
                 }});
             }}
-            const dot = document.querySelector('.active-dot');
+            const dot = shadow.querySelector('.active-dot');
             if (dot) {{
                 const data = dot.getAttribute('data');
                 dot.innerHTML = `
@@ -242,7 +206,7 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
                     ].join(' ');
                 }}
                 function setProgress(percent) {{
-                    const fillPath = document.getElementById('pie-fill-active');
+                    const fillPath = shadow.getElementById('pie-fill-active');
                     if (fillPath) {{
                         fillPath.setAttribute('d', describeArc(7, 7, 6, percent));
                     }}
@@ -315,7 +279,7 @@ fn change_url(app_handle: AppHandle, index: usize, end_time: i64) {
     }
     let url = urls[index].clone();
 
-    app_handle.emit("change-index", (index))
+    app_handle.emit("change-index", index)
         .expect("Failed to emit change-index event");
 
     let webview = app_handle
@@ -376,3 +340,4 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+

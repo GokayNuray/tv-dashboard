@@ -164,7 +164,7 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
             console.log('URL List:', list);
             let container = document.createElement('div');
             container.id = 'url-list-shadow-container';
-            document.body.insertAdjacentElement('afterbegin', container);
+            document.body.insertAdjacentElement('beforebegin', container);
             let shadow = container.attachShadow({{ mode: 'open' }});
             shadow.innerHTML = list;
             const dots = shadow.querySelectorAll('.url-dot');

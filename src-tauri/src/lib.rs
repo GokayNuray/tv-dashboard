@@ -283,8 +283,13 @@ fn change_url(app_handle: AppHandle, index: usize, end_time: i64) {
     app_handle.emit("change-index", index)
         .expect("Failed to emit change-index event");
 
-    let webview = app_handle
-        .get_webview("screen")
+    let webview_option = app_handle.get_webview("screen");
+    if webview_option.is_none() {
+        info!("Webview with label 'screen' does not exist.");
+        return;
+    }
+
+    let webview = webview_option
         .expect("Failed to get webview for the new window");
 
     webview

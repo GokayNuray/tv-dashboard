@@ -13,7 +13,7 @@ fn greet(name: &str) -> String {
 }
 
 static URLS: Mutex<Vec<String>> = Mutex::new(Vec::new());
-static CURRENT_URL: Mutex<String> = Mutex::new(String::new());
+static INDEX: Mutex<usize> = Mutex::new(0);
 static PAGE_CHANGE_TIMESTAMP: Mutex<i64> = Mutex::new(0);
 
 #[allow(dead_code)]
@@ -148,20 +148,19 @@ fn create_list() -> String {
     "##,
     );
 
-    for url in &*urls {
-        let safe_url = url.replace('\'', "\\'");
-        let current_url = CURRENT_URL.lock().unwrap();
-        let active = if *current_url == *url {"active-dot"} else {""};
+    let current_index = INDEX.lock().unwrap();
+    for (index, url) in urls.iter().enumerate() {
+        let active = if *current_index == index {"active-dot"} else {""};
         let _ = write!(
             url_list_html,
             r##"<div class="url-dot-container">
-    <a href="#" class="url-dot {}" tabindex="0" onclick="window.__TAURI_INTERNALS__.invoke('change_url', {{ url: '{}', endTime: 0 }}); return false;">
+    <a href="#" class="url-dot {}" tabindex="0" onclick="window.__TAURI_INTERNALS__.invoke('change_url', {{ index: {}, endTime: 0 }}); return false;">
         {}
     </a>
     <span class="url-tooltip">{}</span>
 </div>"##,
             active,
-            safe_url,
+            index,
             if active == "active-dot" {
                 // Insert the SVG pie for the active dot
                 r##"<span class="pie-container">
@@ -191,8 +190,8 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
         .get_webview("screen");
     if webview_option.is_some() {
         info!("Window with label 'screen' already exists, skipping creation.");
-        let mut current_url = CURRENT_URL.lock().unwrap();
-        *current_url = urls[0].clone();
+        // let mut current_url = CURRENT_URL.lock().unwrap();
+        // *current_url = urls[0].clone();
         webview_option.unwrap().reload().expect("Failed reload webview");
         return;
     };
@@ -300,7 +299,17 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
 }
 
 #[command]
-fn change_url(app_handle: AppHandle, url: String, end_time: i64) {
+fn change_url(app_handle: AppHandle, index: usize, end_time: i64) {
+    let urls = URLS.lock().unwrap();
+    if index >= urls.len() {
+        info!("Index {} is out of bounds for URL list", index);
+        return;
+    }
+    let url = urls[index].clone();
+
+    app_handle.emit("change-index", (index))
+        .expect("Failed to emit change-index event");
+
     let webview = app_handle
         .get_webview("screen")
         .expect("Failed to get webview for the new window");
@@ -314,11 +323,12 @@ fn change_url(app_handle: AppHandle, url: String, end_time: i64) {
         .set_title(&format!("{}", url))
         .expect("Failed to set window title");
 
-    let mut current_url = CURRENT_URL.lock().unwrap();
-    *current_url = url.clone();
-
     let mut page_open_timestamp = PAGE_CHANGE_TIMESTAMP.lock().unwrap();
     *page_open_timestamp = end_time;
+
+    let mut index_lock = INDEX.lock().unwrap();
+    *index_lock = index;
+
 
     info!("Webview URL changed successfully to: {}", url);
 }

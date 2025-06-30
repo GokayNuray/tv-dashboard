@@ -44,6 +44,15 @@ const App = () => {
             document.dispatchEvent(new KeyboardEvent('keyup', {key : event.payload}));
         });
 
+        const unlisten3 = listen('change-index', (event) => {
+            console.log('Change index event received:', event);
+            const newIndex = event.payload;
+            if (newIndex !== index) {
+                setIndex(newIndex);
+                resetCounter();
+            }
+        });
+
         const onKeyUp = (e) => {
             const urls = displayUrlsRef.current;
             if (urls.length === 0) return;
@@ -55,6 +64,7 @@ const App = () => {
         return () => {
             unlisten.then(unlisten => unlisten());
             unlisten2.then(unlisten => unlisten());
+            unlisten3.then(unlisten => unlisten());
             document.removeEventListener('keyup', onKeyUp);
             if (intervalIdRef.current) {
                 clearInterval(intervalIdRef.current);
@@ -84,7 +94,7 @@ const App = () => {
     useEffect(() => {
         const urls = displayUrlsRef.current;
         if (urls[index]) {
-            invoke("change_url", {url: urls[index], endTime: endTimeRef.current});
+            invoke("change_url", {index, endTime: endTimeRef.current});
         }
     }, [index]);
 

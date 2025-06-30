@@ -277,6 +277,7 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
     )
     .title("Screen")
     .background_color(Color(1, 1, 1, 255))
+    .fullscreen(true)
     .visible(true)
     .inner_size(600.0, 800.0)
     .initialization_script(&inject_script)

@@ -203,6 +203,14 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
             let list = await window.__TAURI_INTERNALS__.invoke('create_list');
             console.log('URL List:', list);
             document.body.insertAdjacentHTML('afterbegin', list);
+            const dots = document.querySelectorAll('.url-dot');
+            for (let i = 0; i < dots.length; i++) {{
+                const dot = dots[i];
+                dot.addEventListener('click', (e) => {{
+                    e.preventDefault();
+                    window.__TAURI_INTERNALS__.invoke('change_url', {{ index : i, endTime: 0 }});
+                }});
+            }}
             const dot = document.querySelector('.active-dot');
             if (dot) {{
                 const data = dot.getAttribute('data');

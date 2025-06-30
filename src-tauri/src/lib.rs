@@ -182,12 +182,14 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
     info!("Creating a new window...");
 
     let mut urls_mutex = URLS.lock().unwrap();
-    *urls_mutex = urls;
+    *urls_mutex = urls.clone();
     info!("URL list updated: {:?}", *urls_mutex);
     let webview_option = app_handle
         .get_webview("screen");
     if webview_option.is_some() {
         info!("Window with label 'screen' already exists, skipping creation.");
+        let mut current_url = CURRENT_URL.lock().unwrap();
+        *current_url = urls[0].clone();
         webview_option.unwrap().reload().expect("Failed reload webview");
         return;
     };
@@ -275,7 +277,6 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
     )
     .title("Screen")
     .background_color(Color(1, 1, 1, 255))
-    .resizable(true)
     .visible(true)
     .inner_size(600.0, 800.0)
     .initialization_script(&inject_script)

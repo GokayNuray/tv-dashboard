@@ -93,6 +93,7 @@ fn create_list() -> String {
             display: flex;
             flex-direction: column;
             gap: 8px;
+            overflow: visible;
         }
         #url-list .url-dot-container {
             position: relative;
@@ -111,6 +112,7 @@ fn create_list() -> String {
             transition: box-shadow 0.2s;
             position: relative;
             z-index: 1;
+            flex-shrink: 0;
         }
         #url-list .url-dot-container .url-tooltip {
             max-width: 260px;
@@ -131,6 +133,7 @@ fn create_list() -> String {
             pointer-events: none;
             z-index: 2;
             display: inline-block;
+            word-break: break-all;
         }
         #url-list .url-dot:hover + .url-tooltip,
         #url-list .url-dot:focus + .url-tooltip {
@@ -141,7 +144,7 @@ fn create_list() -> String {
             box-shadow: 0 0 0 3px #2196f3aa;
         }
         </style>
-        <div id="url-list" style='position:fixed;top:0;left:0;padding:8px;z-index:9999;font-size:14px;max-width:300px;overflow:auto;'>
+        <div id="url-list" style='position:fixed;top:0;left:0;padding:8px;z-index:9999;font-size:14px;max-width:300px;'>
     "##,
     );
 

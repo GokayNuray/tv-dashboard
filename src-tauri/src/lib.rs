@@ -220,6 +220,7 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
                     if (newTime !== endTime) {{
                         endTime = newTime;
                         startTime = Date.now();
+                        setProgress(0);
                         return;
                     }}
                     const percent = Math.min(100, Math.floor(((Date.now() - startTime) / (endTime - startTime)) * 100));

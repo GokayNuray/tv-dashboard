@@ -107,7 +107,7 @@ export const Settings = ({startLoop, currentIndex}) => {
                             <path d="M6 10.5L9 13.5L14 8.5" stroke="white" strokeWidth="2" strokeLinecap="round"/>
                         </svg>
                     </span>
-                    Apply
+                    Start
                 </button>
             </div>
         </div>

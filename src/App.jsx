@@ -88,7 +88,7 @@ const App = () => {
 
         intervalIdRef.current = setInterval(() => {
             if (Date.now() >= endTimeRef.current) increaseIndex();
-        }, 0);
+        }, 100);
     };
 
     useEffect(() => {

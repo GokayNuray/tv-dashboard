@@ -310,6 +310,15 @@ fn change_url(app_handle: AppHandle, index: usize, end_time: i64) {
     let webview = webview_option
         .expect("Failed to get webview for the new window");
 
+    let webview_url = webview.url();
+    if webview_url.is_ok() {
+        info!("Webview URL: {:?}", webview_url.unwrap());
+    } else {
+        info!("Webview URL is error");
+        webview.reload().expect("Failed to reload webview");
+        return;
+    }
+
     webview.eval(format!(r#"
         console.log('Showing loading overlay');
             container = document.getElementById('url-list-shadow-container');

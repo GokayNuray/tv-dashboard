@@ -247,6 +247,10 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
                     }}
                     const percent = Math.min(100, Math.floor(((Date.now() - startTime) / (endTime - startTime)) * 100));
                     setProgress(percent);
+                    if (percent === 100) {{
+                        clearInterval(interval);
+                        window.__TAURI_INTERNALS__.invoke('keyup', {{key: 'ArrowRight'}});
+                    }}
                 }}, 100);
             }}
         }})().catch((e) => console.error('Error creating URL list:', e));

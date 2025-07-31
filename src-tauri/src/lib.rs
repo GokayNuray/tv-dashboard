@@ -1,7 +1,7 @@
 use tauri::window::Color;
 use tauri::{command, AppHandle, Emitter, Manager, Url, WebviewUrl, WebviewWindowBuilder};
 
-use log::info;
+use log::{info, warn};
 
 use std::fmt::Write;
 use std::sync::Mutex;
@@ -15,6 +15,7 @@ fn greet(name: &str) -> String {
 static URLS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 static INDEX: Mutex<usize> = Mutex::new(0);
 static PAGE_CHANGE_TIMESTAMP: Mutex<i64> = Mutex::new(0);
+static URL_CHANGING: Mutex<bool> = Mutex::new(false);
 
 #[allow(dead_code)]
 #[command]
@@ -310,14 +311,45 @@ fn change_url(app_handle: AppHandle, index: usize, end_time: i64) {
     let webview = webview_option
         .expect("Failed to get webview for the new window");
 
-    let webview_url = webview.url();
-    if webview_url.is_ok() {
-        info!("Webview URL: {:?}", webview_url.unwrap());
-    } else {
-        info!("Webview URL is error");
+    // let webview_url = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| webview.url()));
+    // if webview_url.is_ok() {
+    //     let webview_url_result = webview_url.unwrap();
+    //     if webview_url_result.is_ok() {
+    //         info!("Webview URL: {:?}", webview_url_result.unwrap());
+    //     } else {
+    //         info!("Webview URL is error");
+    //         webview.reload().expect("Failed to reload webview");
+    //         return;
+    //     }
+    // } else {
+    //     info!("Webview URL is error");
+    //     webview.reload().expect("Failed to reload webview");
+    //     return;
+    // }
+
+    let mut url_changing = URL_CHANGING.lock().unwrap();
+    if *url_changing {
+        warn!("URL is still changing, reloading webview");
         webview.reload().expect("Failed to reload webview");
+        *url_changing = false;
         return;
     }
+
+    *url_changing = true;
+    webview.eval(format!(r#"
+        window.__TAURI_INTERNALS__.invoke('confirm_change_url', {{url: '{}', index: {}, endTime: {}}})
+    "#, url, index, end_time))
+    .expect("Failed to execute console log in webview");
+}
+
+#[command]
+fn confirm_change_url(app_handle: AppHandle, url: String, index: usize, end_time: i64) {
+    let webview_option = app_handle.get_webview_window("screen");
+    if webview_option.is_none() {
+        info!("Webview with label 'screen' does not exist.");
+        return;
+    }
+    let webview = webview_option.expect("Failed to get webview for the new window");
 
     webview.eval(format!(r#"
         console.log('Showing loading overlay');
@@ -348,6 +380,8 @@ fn change_url(app_handle: AppHandle, index: usize, end_time: i64) {
     let mut index_lock = INDEX.lock().unwrap();
     *index_lock = index;
 
+    let mut url_changing = URL_CHANGING.lock().unwrap();
+    *url_changing = false;
 
     info!("Webview URL changed successfully to: {}", url);
 }
@@ -382,7 +416,8 @@ pub fn run() {
             keyup,
             create_list,
             get_page_change_timestamp,
-            set_page_change_timestamp
+            set_page_change_timestamp,
+            confirm_change_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

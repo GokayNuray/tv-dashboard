@@ -149,7 +149,7 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
     *urls_mutex = urls.clone();
     info!("URL list updated: {:?}", *urls_mutex);
     let webview_option = app_handle
-        .get_webview("screen");
+        .get_webview_window("screen");
     if webview_option.is_some() {
         info!("Window with label 'screen' already exists, skipping creation.");
         webview_option.unwrap().reload().expect("Failed reload webview");
@@ -286,7 +286,7 @@ fn create_window(app_handle: AppHandle, urls: Vec<String>) {
     );
 
     let webview = _window
-        .get_webview("screen")
+        .get_webview_window("screen")
         .expect("Failed to get webview for the new window");
 
     info!("Webview for the new window: {:?}", webview.url().unwrap());
@@ -301,7 +301,7 @@ fn change_url(app_handle: AppHandle, index: usize, end_time: i64) {
     }
     let url = urls[index].clone();
 
-    let webview_option = app_handle.get_webview("screen");
+    let webview_option = app_handle.get_webview_window("screen");
     if webview_option.is_none() {
         info!("Webview with label 'screen' does not exist.");
         return;
@@ -336,7 +336,6 @@ fn change_url(app_handle: AppHandle, index: usize, end_time: i64) {
         .expect("Failed to execute console log in webview");
 
     webview
-        .window()
         .set_title(&format!("{}", url))
         .expect("Failed to set window title");
 

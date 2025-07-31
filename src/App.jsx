@@ -89,8 +89,9 @@ const App = () => {
         intervalIdRef.current = setInterval(() => {
             if (Date.now() >= endTimeRef.current + 1000) {
                 //send change signal if change from screen did not work
-                invoke("change_url", {index: index, endTime: endTimeRef.current});
+                console.log("Stuck at index", index);
                 endTimeRef.current = Date.now() + timeBetween;
+                invoke("change_url", {index: 0, endTime: endTimeRef.current});
             }
         }, 100);
     };

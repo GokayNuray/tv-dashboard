@@ -334,6 +334,8 @@ fn change_url(app_handle: AppHandle, index: usize, end_time: i64) {
     let mut url_changing = URL_CHANGING.lock().unwrap();
     if *url_changing {
         warn!("URL is still changing, reloading webview");
+        let mut page_change_timestamp = PAGE_CHANGE_TIMESTAMP.lock().unwrap();
+        *page_change_timestamp = end_time;
         webview.reload().expect("Failed to reload webview");
         *url_changing = false;
         return;
